@@ -1,6 +1,10 @@
-import puppeteer, { Browser, LaunchOptions, Page } from "puppeteer";
+import puppeteer from "puppeteer-extra";
+import { Browser, LaunchOptions, Page, executablePath } from "puppeteer";
 
-class AgentBrowser {
+const StealthPlugin = require('puppeteer-extra-plugin-stealth')
+puppeteer.use(StealthPlugin())
+
+class StealthBrowser {
   private browser: Browser | null = null;
   private browserOptions: LaunchOptions;
   private interactiveElements: any = [];
@@ -12,7 +16,7 @@ class AgentBrowser {
 
   private async initializeBrowser() {
     try {
-      this.browser = await puppeteer.launch(this.browserOptions);
+      this.browser = await puppeteer.launch({...this.browserOptions, executablePath: executablePath()});
     } catch (error) {
       console.error(`Unable to launch the browser Error: ${error}`);
       process.abort();
@@ -117,7 +121,9 @@ class AgentBrowser {
       if (clickable) {
         await page.click(html_selector);
       } else {
+        await page.type(html_selector, "");
         await page.type(html_selector, input_data, { delay: 300 });
+        await page.keyboard.press("Enter");
       }
       return `Successfully interacted with element: ${html_selector}.`;
     } catch (error) {
@@ -170,4 +176,4 @@ class AgentBrowser {
   }
 }
 
-export default AgentBrowser;
+export default StealthBrowser;

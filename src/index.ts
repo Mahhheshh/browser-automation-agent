@@ -1,10 +1,9 @@
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
-import { isAIMessageChunk } from "@langchain/core/messages";
-// import { HumanMessage } from "@langchain/core/messages";
+import { isAIMessageChunk, isToolMessageChunk } from "@langchain/core/messages";
 import { config } from "dotenv";
 
-import { AgentBrowser, createBrowserTools, SYSTEM_PROMPT } from "./agent";
+import { StealthBrowser, createBrowserTools, SYSTEM_PROMPT } from "./agent";
 
 config();
 
@@ -14,7 +13,7 @@ const model = new ChatGoogleGenerativeAI({
   apiKey: process.env.GOOGLE_API_KEY,
 });
 
-const browser = new AgentBrowser({ channel: "chrome", headless: false });
+const browser = new StealthBrowser({ channel: "chrome", headless: false });
 const broswerTools = createBrowserTools(browser);
 
 const agent = createReactAgent({
@@ -28,20 +27,21 @@ const input = {
       role: "system",
       content: SYSTEM_PROMPT,
     },
-    {
-      role: "user",
-      content:
-        "Hey, there is this user named Mahhheshh on the github, find how many repos he have, also list the repos down",
-    },
-    // {
-    //   role: "user",
-    //   content: "Crustdata is a yc backed startup, I am not sure have then been funded after graduating from the yc, could you find me their seed rounds"
-    // }
     // {
     //   role: "user",
     //   content:
-    //     "Go on youtube, and tell play latest video of mr beast, and tell me stats for the video, such as views, likes.",
+    //     "what is Crustdata and who are the founders",
     // },
+    // {
+    //   role: "user",
+    //   content:
+    //     "There is this user named Mahhheshh on the github, find how many repos he have, also list the repos down",
+    // },
+    {
+      role: "user",
+      content:
+        "Go on youtube, and tell play latest video of mr beast, and tell me stats for the video, such as views, likes.",
+    },
   ],
 };
 
@@ -52,14 +52,10 @@ const input = {
   });
 
   for await (const [message, _metadata] of stream) {
-    if (isAIMessageChunk(message) && message.tool_call_chunks?.length) {
-      console.log(
-        `${message.getType()} MESSAGE TOOL CALL CHUNK: ${
-          message.tool_call_chunks[0].args
-        }`
-      );
-    } else {
-      console.log(`${message.getType()} MESSAGE CONTENT: ${message.content}`);
+    if (isAIMessageChunk(message)) {
+      console.log(`${message.getType()}: Content: ${message.content}`);
+    } else if (isToolMessageChunk(message)) {
+      console.log(`${message.getType()}: Content: ${message.name}`);
     }
   }
 })();

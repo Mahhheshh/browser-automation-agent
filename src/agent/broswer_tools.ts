@@ -12,7 +12,7 @@ export const createBrowserTools = (browserService: AgentBrowser) => [
     {
       name: "new_browser_tab",
       description:
-        "Opens a new tab in the browser. Requires a URL. If no URL is provided, use default url of  https://google.com and types the query into the search bar, then navigates from there.",
+        "Opens a new tab in the browser. Requires a URL. If no URL is provided, use default url of  https://google.com and types the query into the search bar, then navigates from there. Should be Opend Onces",
       schema: z.object({
         query: z.string().describe("the query user is asking for"),
       }),
@@ -20,26 +20,28 @@ export const createBrowserTools = (browserService: AgentBrowser) => [
   ),
 
   // tool to close the browser tab
-  tool(
-    browserService.close_tab,
-    {
-      name: "close_browser_tab",
-      description: "close all the broswer tabs",
-    }
-  ),
+  tool(browserService.close_tab, {
+    name: "close_browser_tab",
+    description: "close all the broswer tabs",
+  }),
 
   tool(
-    async ({newUrl}) => {
+    async ({ newUrl }) => {
       const result = await browserService.update_url(newUrl);
 
       return result;
     },
     {
       name: "update_tab_url",
-      description: "Updates the current page URL to a new URL. This is particularly useful for quickly navigating to different pages using known href values.",
+      description:
+        "Updates the current page URL to a new URL. This is particularly useful for quickly navigating to different pages using known href values.",
       schema: z.object({
-        newUrl: z.string().describe("The new URL to navigate the current tab to. This strictly has to be a URL.")
-      })
+        newUrl: z
+          .string()
+          .describe(
+            "The new URL to navigate the current tab to. This strictly has to be a URL."
+          ),
+      }),
     }
   ),
 
@@ -85,7 +87,7 @@ export const createBrowserTools = (browserService: AgentBrowser) => [
     {
       name: "interact_with_page",
       description:
-        "Locates and returns an interactive HTML element on the current page based on the provided CSS selector. Use this tool to identify specific elements for interaction.",
+        "This tool interacts with a specified HTML element on the page using a CSS selector. If the element is clickable, it will perform a click action. If the element is an input field, it will input the provided data and then press Enter.",
       schema: z.object({
         html_selector: z
           .string()
