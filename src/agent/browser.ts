@@ -104,8 +104,7 @@ class StealthBrowser {
 
       return JSON.stringify(this.interactiveElements, null, 2);
     } catch (error) {
-      console.error(`Error in getting interactive elements: ${error}`);
-      return `Error in getting interactive elements: ${error}`;
+      return `Error in getting interactive elements for page Title: ${await page.title()}, Error Message: ${error}`;
     }
   }
 
@@ -115,7 +114,6 @@ class StealthBrowser {
     input_data: string
   ): Promise<string> {
     if (!this.browser) {
-      console.log("Browser not initialized.");
       return "Browser not initialized.";
     }
 
@@ -131,9 +129,6 @@ class StealthBrowser {
       }
       return `Successfully interacted with element: ${html_selector}.`;
     } catch (error) {
-      console.error(
-        `An unexpected error has occued interacting with ${html_selector} the error is ${error}`
-      );
       return `An unexpected error has occued interacting with ${html_selector} the error is ${error}`;
     }
   }
@@ -144,10 +139,10 @@ class StealthBrowser {
     }
 
     const page = (await this.browser.pages())[0];
-
+    const title = await page.title();
     const textContent = await page.evaluate(() => {
       const body = document.querySelector("body");
-      const content = body ? body.innerText : "";
+      const content = body ? body.innerText : `Human Readable Text Extraction failed for ${title}`;
       return content;
     });
 
@@ -174,7 +169,7 @@ class StealthBrowser {
       await this.browser.close();
       this.browser = null;
     } catch (error) {
-      console.error(`Error closing browser: ${error}`);
+      return `could not close browser due to ${error}`;
     }
     return "browser closed!";
   }
