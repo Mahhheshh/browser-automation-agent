@@ -12,19 +12,20 @@ export const createBrowserTools = (browserService: AgentBrowser) => [
     {
       name: "new_browser_tab",
       description:
-        "Opens a new tab in the browser. Requires a URL. If no URL is provided, use default url of  https://google.com and types the query into the search bar, then navigates from there. Should be Opend Onces",
+      "Opens a new tab in the browser with the specified URL. The query must be a complete URL (e.g., https://example.com). If you have keywords instead of a URL, use https://google.com and type your query in the search box.",
       schema: z.object({
-        query: z.string().describe("the query user is asking for"),
+      query: z.string().describe("The URL to open in the new tab. Must be a complete URL with protocol (e.g., https://example.com)"),
       }),
     }
-  ),
+    ),
 
-  // tool to close the browser tab
-  tool(browserService.close_tab, {
-    name: "close_browser_tab",
-    description: "close all the broswer tabs",
-  }),
+  // // tool to close the browser tab
+  // tool(browserService.close_tab, {
+  //   name: "close_browser_tab",
+  //   description: "close all the broswer tabs",
+  // }),
 
+  // tool to update the navigation url of the current tab
   tool(
     async ({ newUrl }) => {
       const result = await browserService.update_url(newUrl);

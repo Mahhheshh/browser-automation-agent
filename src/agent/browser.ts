@@ -1,8 +1,9 @@
 import puppeteer from "puppeteer-extra";
 import { Browser, LaunchOptions, Page, executablePath } from "puppeteer";
 
-const StealthPlugin = require('puppeteer-extra-plugin-stealth')
-puppeteer.use(StealthPlugin())
+import StealthPlugin from "puppeteer-extra-plugin-stealth";
+
+puppeteer.use(StealthPlugin());
 
 class StealthBrowser {
   private browser: Browser | null = null;
@@ -16,7 +17,10 @@ class StealthBrowser {
 
   private async initializeBrowser() {
     try {
-      this.browser = await puppeteer.launch({...this.browserOptions, executablePath: executablePath()});
+      this.browser = await puppeteer.launch({
+        ...this.browserOptions,
+        executablePath: executablePath("chrome"),
+      });
     } catch (error) {
       console.error(`Unable to launch the browser Error: ${error}`);
       process.abort();
@@ -42,7 +46,7 @@ class StealthBrowser {
   }
 
   public async update_url(newUrl: string): Promise<string> {
-    if (!this.browser) return "No broswer initilized"
+    if (!this.browser) return "No broswer initilized";
 
     const page = (await this.browser.pages())[0];
 
@@ -80,17 +84,17 @@ class StealthBrowser {
           text: el.textContent?.replace(/\s/g, ""),
         }))
       );
-      
+
       const links = await page.$$eval("a", (els) =>
         els.map((el) => ({
           tagId: el.id,
           tagName: el.tagName,
           className: el.className,
           text: el.textContent?.replace(/\s/g, ""),
-          href: el.href
+          href: el.href,
         }))
       );
-      
+
       this.interactiveElements = [];
       this.interactiveElements = [
         ...input_elements,
@@ -142,8 +146,8 @@ class StealthBrowser {
     const page = (await this.browser.pages())[0];
 
     const textContent = await page.evaluate(() => {
-      const body = document.querySelector('body');
-      const content = body ? body.innerText : '';
+      const body = document.querySelector("body");
+      const content = body ? body.innerText : "";
       return content;
     });
 
