@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { object, z } from "zod";
 import AgentBrowser from "./browser";
 import { tool } from "@langchain/core/tools";
 
@@ -6,18 +6,32 @@ export const createBrowserTools = (browserService: AgentBrowser) => [
   // open a new tab
   tool(
     async ({ query }) => {
-      await browserService.new_tab(query);
-      return `New Tab opened for the query: ${query}`;
+      if (!query.includes("https://")) {
+        await browserService.new_tab("https://google.com");
+        return {
+          message: `New Google Tab Opened for query: ${query}`,
+          pageUrl: "https://google.com",
+        };
+      }
+      const page = await browserService.new_tab(query);
+      return {
+        message: `New Tab opened for the query: ${query}`,
+        pageUrl: page.url(),
+      };
     },
     {
       name: "new_browser_tab",
       description:
-      "Opens a new tab in the browser with the specified URL. The query must be a complete URL (e.g., https://example.com). If you have keywords instead of a URL, use https://google.com and type your query in the search box.",
+        "Opens a new browser tab with the specified URL. If the query doesn't include 'https://', it will open Google by default.",
       schema: z.object({
-      query: z.string().describe("The URL to open in the new tab. Must be a complete URL with protocol (e.g., https://example.com)"),
+        query: z
+          .string()
+          .describe(
+            "The URL to open in the new tab. Should include protocol (https://). If not a valid URL, Google will be opened instead."
+          ),
       }),
     }
-    ),
+  ),
 
   // // tool to close the browser tab
   // tool(browserService.close_tab, {
@@ -43,6 +57,27 @@ export const createBrowserTools = (browserService: AgentBrowser) => [
             "The new URL to navigate the current tab to. This strictly has to be a URL."
           ),
       }),
+    }
+  ),
+
+  // tool to scroll page up and down
+  tool(
+    async (direction) => {
+      const result = await browserService.pageScroll(
+        direction as "up" | "down"
+      );
+
+      return result;
+    },
+    {
+      name: "page_scroll",
+      description:
+        "Scrolls the current page up or down to reveal more content or return to the top.",
+      schema: z
+        .string()
+        .describe(
+          "The direction to scroll the page. Use 'down' to load more content below the current view, or 'up' to return to the top of the page."
+        ),
     }
   ),
 
