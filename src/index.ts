@@ -8,9 +8,10 @@ import {
   ToolMessageChunk,
 } from "@langchain/core/messages";
 import { config } from "dotenv";
+import WebSocket, { WebSocketServer } from "ws";
+import http from "http";
 
 import { StealthBrowser, createBrowserTools, SYSTEM_PROMPT } from "./agent";
-import { z } from "zod";
 
 config();
 
@@ -20,52 +21,95 @@ const model = new ChatGoogleGenerativeAI({
   apiKey: process.env.GOOGLE_API_KEY,
 });
 
-const browser = new StealthBrowser({ headless: false, args: ["--no-sandbox"] });
-const broswerTools = createBrowserTools(browser);
+const PORT = process.env.PORT || 8080;
+const server = http.createServer();
+const wss = new WebSocketServer({ server });
 
-const responseFormatter = z.object({
-  answer: z.string().describe("The answer to the user's question"),
-  followup_question: z
-    .string()
-    .describe("A follow-up question the user could ask"),
-});
+const agentClients = new Map<
+  WebSocket,
+  { agent: ReturnType<typeof createReactAgent>; browser: StealthBrowser }
+>();
 
-const agent = createReactAgent({
-  llm: model,
-  tools: broswerTools,
-  responseFormat: responseFormatter,
-});
+wss.on("connection", async (ws) => {
+  console.log("Client connected");
 
-const input = {
-  messages: [
-    new SystemMessage(SYSTEM_PROMPT),
-    // new HumanMessage(
-    //   "what is Crustdata and who are the founders, and tell me about funding they have recived via the seed rounds"
-    // ),
-    // new HumanMessage("There is this user named Mahhheshh on the github, find how many repos he have, also list the repos down"),
-    new HumanMessage(
-      "Go on youtube, and play latest video of mr beast, and tell me stats for the video, such as views, likes."
-    ),
-    // new HumanMessage("Go on youtube and sign in, use email my email is biscuit1000m@gmail.com and password is password, please dont click on sign in just fill in the details")
-  ],
-};
+  const browser = new StealthBrowser({
+    headless: false,
+    args: ["--no-sandbox"],
+  });
+  const broswerTools = createBrowserTools(browser);
 
-(async () => {
-  const stream = await agent.stream(input, {
-    recursionLimit: 50,
-    streamMode: "messages",
+  const agent = createReactAgent({
+    llm: model,
+    tools: broswerTools,
   });
 
-  for await (const [message, _metadata] of stream) {
-    if (isAIMessageChunk(message)) {
-      console.log(`${message.getType()} Content: ${message.content}`);
-    } else if (isToolMessageChunk(message)) {
-      const toolMessage = message as ToolMessageChunk;
-      console.log(
-        `${toolMessage.getType()} Name: ${toolMessage.name}, Content: ${
-          toolMessage.content
-        }`
-      );
+  agentClients.set(ws, { agent, browser });
+
+  ws.on("message", async (message) => {
+    const parsedMessage = JSON.parse(message.toString());
+    console.log(JSON.stringify(parsedMessage, null, 2));
+    const input = {
+      messages: [
+        new SystemMessage(SYSTEM_PROMPT),
+        new HumanMessage(parsedMessage.message),
+      ],
+    };
+
+    try {
+      const stream = await agent.stream(input, {
+        recursionLimit: 50,
+        streamMode: "messages",
+      });
+
+      for await (const [chunk, _metadata] of stream) {
+        if (ws.readyState === WebSocket.OPEN) {
+          if (isAIMessageChunk(chunk)) {
+            console.log(`ai content: ${chunk.content}`);
+            ws.send(JSON.stringify({ type: "ai", content: chunk.content }));
+          } else if (isToolMessageChunk(chunk)) {
+            const toolMessage = chunk as ToolMessageChunk;
+            ws.send(
+              JSON.stringify({
+                type: "tool",
+                name: toolMessage.name,
+                content: toolMessage.content,
+              })
+            );
+          }
+        }
+      }
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "end" }));
+      }
+    } catch (error) {
+      console.error("Error processing message:", error);
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(
+          JSON.stringify({
+            type: "error",
+            message: "Error processing your request.",
+          })
+        );
+      }
     }
-  }
-})();
+  });
+
+  ws.on("close", () => {
+    console.log("Client disconnected");
+    const clientData = agentClients.get(ws);
+    if (clientData?.browser) {
+      clientData.browser.close_browser();
+    }
+    agentClients.delete(ws);
+  });
+
+  ws.on("error", (error) => {
+    console.error("WebSocket error:", error);
+    agentClients.delete(ws);
+  });
+});
+
+server.listen(PORT, () => {
+  console.log(`WebSocket server listening on port ${PORT}`);
+});
