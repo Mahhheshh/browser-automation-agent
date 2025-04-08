@@ -2,6 +2,7 @@ import puppeteer from "puppeteer-extra";
 import { Browser, LaunchOptions, Page, executablePath } from "puppeteer";
 
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
+import { WebSocket } from "ws";
 
 puppeteer.use(StealthPlugin());
 
@@ -21,6 +22,20 @@ class StealthBrowser {
   constructor(browserOptions: LaunchOptions) {
     this.browserOptions = browserOptions;
     this.initializeBrowser();
+  }
+
+  public async captureScreenShot(): Promise<string> {
+    const page = await this.getActivePage();
+    if (!page || !this.browser) return "";
+    const screenShot = await page.screenshot({
+      encoding: "base64",
+      omitBackground: true,
+    });
+
+    return JSON.stringify({
+      type: "screenshot",
+      content: `data:image/png;base64,${screenShot}`,
+    });
   }
 
   private async initializeBrowser(): Promise<void> {
@@ -52,16 +67,16 @@ class StealthBrowser {
     if (!this.browser) {
       throw new Error("Browser not initialized.");
     }
-
     const pages = await this.browser.pages();
     let page: Page;
-
+    
     if (pages.length === 0) {
       page = await this.browser.newPage();
     } else {
       page = pages[0];
     }
-
+    
+    await page.setViewport({ width: 1080, height: 1024 });
     try {
       await Promise.all([page.goto(url), page.waitForNavigation()]);
       return page;

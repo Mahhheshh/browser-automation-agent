@@ -30,7 +30,7 @@ const agentClients = new Map<
   { agent: ReturnType<typeof createReactAgent>; browser: StealthBrowser }
 >();
 
-wss.on("connection", async (ws) => {
+wss.on("connection", async (ws: WebSocket) => {
   console.log("Client connected");
 
   const browser = new StealthBrowser({
@@ -44,7 +44,22 @@ wss.on("connection", async (ws) => {
     tools: broswerTools,
   });
 
+  const sendScreenshot = async () => {
+    if (ws.readyState !== WebSocket.OPEN) {
+      return;
+    }
+    try {
+      const data = await browser.captureScreenShot();
+      if (data === "") return;
+      console.log("sending data");
+      ws.send(data);
+    } catch (error) {
+      console.error("Failed to capture or send screenshot:", error);
+    }
+  };
+
   agentClients.set(ws, { agent, browser });
+  setInterval(sendScreenshot, 1000);
 
   ws.on("message", async (message) => {
     const parsedMessage = JSON.parse(message.toString());
